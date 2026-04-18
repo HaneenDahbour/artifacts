@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>نظام إدارة العملاء والفواتير</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">CW</div>
+        <div>
+          <h1>نظام العمل</h1>
+          <p>إدارة العملاء والفواتير</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-btn active" data-view="dashboard">لوحة التحكم</button>
+        <button class="nav-btn" data-view="clients">العملاء</button>
+        <button class="nav-btn" data-view="invoices">الفواتير</button>
+        <button class="nav-btn" data-view="payments">الدفعات</button>
+        <button class="nav-btn" data-view="reports">التقارير</button>
+        <button class="nav-btn" data-view="settings">الإعدادات</button>
+      </nav>
+
+      <div class="sidebar-card">
+        <strong>البيانات الحالية</strong>
+        <p id="seedInfo">تم تحميل بيانات أولية من ملف Excel.</p>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <h2 id="pageTitle">لوحة التحكم</h2>
+          <p class="muted">نسخة محلية تعمل داخل المتصفح</p>
+        </div>
+        <div class="topbar-actions">
+          <input id="globalSearch" type="search" placeholder="ابحث بالاسم أو رقم الفاتورة" />
+          <button id="exportBtn" class="secondary">تصدير البيانات</button>
+          <label class="secondary file-label">
+            استيراد JSON
+            <input type="file" id="importFile" accept="application/json" hidden />
+          </label>
+          <button id="resetBtn" class="danger">إعادة ضبط</button>
+        </div>
+      </header>
+
+      <section id="dashboard" class="view active">
+        <div class="stats-grid" id="statsGrid"></div>
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>أعلى العملاء حسب الرصيد</h3>
+            </div>
+            <div id="topClients"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <h3>البيع حسب الفئة</h3>
+            </div>
+            <div id="categorySummary"></div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>آخر الفواتير</h3>
+            </div>
+            <div id="recentInvoices"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <h3>آخر الدفعات</h3>
+            </div>
+            <div id="recentPayments"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="clients" class="view">
+        <div class="panel">
+          <div class="panel-header between">
+            <h3>إضافة عميل</h3>
+          </div>
+          <form id="clientForm" class="form-grid">
+            <input name="name" placeholder="اسم العميل" required />
+            <input name="phone" placeholder="رقم الهاتف" />
+            <input name="address" placeholder="العنوان" />
+            <input name="notes" placeholder="ملاحظات" />
+            <button type="submit">حفظ العميل</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>قائمة العملاء</h3>
+          </div>
+          <div id="clientsTableWrap"></div>
+        </div>
+      </section>
+
+      <section id="invoices" class="view">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>إضافة فاتورة</h3>
+          </div>
+          <form id="invoiceForm" class="form-grid">
+            <select name="clientId" id="invoiceClient" required></select>
+            <input name="invoiceNumber" placeholder="رقم الفاتورة" required />
+            <select name="category" id="invoiceCategory" required></select>
+            <input name="amount" type="number" step="0.01" min="0" placeholder="القيمة" required />
+            <input name="date" type="date" />
+            <select name="status">
+              <option value="unpaid">غير مدفوعة</option>
+              <option value="paid">مدفوعة</option>
+              <option value="partial">مدفوعة جزئياً</option>
+            </select>
+            <input name="notes" placeholder="ملاحظات" />
+            <button type="submit">حفظ الفاتورة</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>الفواتير</h3>
+          </div>
+          <div id="invoicesTableWrap"></div>
+        </div>
+      </section>
+
+      <section id="payments" class="view">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>إضافة دفعة</h3>
+          </div>
+          <form id="paymentForm" class="form-grid">
+            <select name="clientId" id="paymentClient" required></select>
+            <select name="category" id="paymentCategory"></select>
+            <input name="amount" type="number" step="0.01" min="0" placeholder="قيمة الدفعة" required />
+            <input name="date" type="date" />
+            <select name="method">
+              <option value="cash">نقداً</option>
+              <option value="bank">تحويل بنكي</option>
+              <option value="other">أخرى</option>
+            </select>
+            <input name="notes" placeholder="ملاحظات" />
+            <button type="submit">حفظ الدفعة</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>الدفعات</h3>
+          </div>
+          <div id="paymentsTableWrap"></div>
+        </div>
+      </section>
+
+      <section id="reports" class="view">
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>كشف عميل</h3>
+            </div>
+            <div class="form-grid small-grid">
+              <select id="statementClient"></select>
+              <button id="printStatementBtn">طباعة الكشف</button>
+            </div>
+            <div id="statementWrap"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <h3>ملخص الذمم</h3>
+            </div>
+            <div id="balancesWrap"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings" class="view">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>حول النسخة الحالية</h3>
+          </div>
+          <div class="settings-box">
+            <p>هذه نسخة MVP تعمل محلياً داخل المتصفح وتخزن البيانات في <code>localStorage</code>.</p>
+            <ul>
+              <li>تم استيراد البيانات الأولية من ملف Excel الذي رفعته.</li>
+              <li>يمكنك إضافة عملاء وفواتير ودفعات جديدة.</li>
+              <li>يمكنك تصدير البيانات الحالية واستيرادها لاحقاً.</li>
+              <li>الخطوة القادمة لتحويله إلى نظام حقيقي على الإنترنت: Firebase أو PostgreSQL + Node.js + تسجيل دخول.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="seedData.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
