@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From Model to Production · CNCF Jordan</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070B10;
+  --bg2:#0D1117;
+  --bg3:#111823;
+  --border:#1A2840;
+  --border2:#243550;
+  --cyan:#00E5FF;
+  --green:#00FF88;
+  --red:#FF3B3B;
+  --amber:#FFB800;
+  --purple:#BD93F9;
+  --text:#E2E8F0;
+  --text2:#8899AA;
+  --text3:#4A5A6A;
+  --font:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center}
+
+/* scanline overlay */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px);
+}
+
+.shell{width:100%;max-width:900px;display:flex;flex-direction:column;height:100vh;max-height:660px;padding:12px}
+
+/* top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 4px 10px;flex-shrink:0}
+.topbar-left{font-size:10px;color:var(--text3);letter-spacing:.08em}
+.topbar-left span{color:var(--cyan)}
+.slide-counter{font-size:10px;color:var(--text3)}
+
+/* progress */
+.prog-track{height:2px;background:var(--border);border-radius:2px;flex-shrink:0;margin-bottom:10px}
+.prog-bar{height:100%;background:linear-gradient(90deg,var(--cyan),var(--green));border-radius:2px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+
+/* stage */
+.stage{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+
+/* slides */
+.slide{position:absolute;inset:0;padding:32px 40px;display:flex;flex-direction:column;opacity:0;pointer-events:none;transform:translateX(30px);transition:opacity .35s ease,transform .35s ease}
+.slide.active{opacity:1;pointer-events:all;transform:translateX(0)}
+.slide.out-left{transform:translateX(-30px);opacity:0}
+
+.slide-tag{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);padding:4px 10px;border:1px solid var(--border2);border-radius:20px;width:fit-content;margin-bottom:16px}
+.slide-tag.cyan{color:var(--cyan);border-color:rgba(0,229,255,.25);background:rgba(0,229,255,.05)}
+.slide-tag.green{color:var(--green);border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.05)}
+.slide-tag.amber{color:var(--amber);border-color:rgba(255,184,0,.25);background:rgba(255,184,0,.05)}
+.slide-tag.purple{color:var(--purple);border-color:rgba(189,147,249,.25);background:rgba(189,147,249,.05)}
+
+.h1{font-size:28px;font-weight:700;line-height:1.15;margin-bottom:6px}
+.h2{font-size:20px;font-weight:600;line-height:1.2;margin-bottom:6px}
+.sub{font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:18px}
+
+/* --- SLIDE 0: TITLE --- */
+.title-glyph{font-size:11px;color:var(--text3);margin-bottom:24px;font-weight:300}
+.title-glyph span{color:var(--cyan)}
+.title-hero{font-size:34px;font-weight:700;line-height:1.1;margin-bottom:8px}
+.title-hero .accent{color:var(--cyan)}
+.title-tagline{font-size:13px;color:var(--text2);max-width:500px;line-height:1.7;border-left:2px solid var(--border2);padding-left:14px;margin-bottom:28px}
+.title-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.meta-chip{font-size:10px;color:var(--text3);border:1px solid var(--border);border-radius:20px;padding:4px 12px}
+.meta-chip.hi{color:var(--cyan);border-color:rgba(0,229,255,.3)}
+.agenda-row{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}
+.agenda-pill{font-size:10px;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);color:var(--text2)}
+.agenda-pill.active-pill{background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.3);color:var(--cyan)}
+.blink{animation:blink 1.1s step-end infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* --- SLIDE 1: RESTAURANT ANIMATION --- */
+.demo-controls{display:flex;gap:10px;margin-bottom:14px;flex-shrink:0}
+.demo-btn{flex:1;padding:10px 16px;border-radius:10px;border:1.5px solid var(--border2);background:var(--bg3);color:var(--text2);font-family:var(--font);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.04em}
+.demo-btn:hover{transform:translateY(-1px)}
+.demo-btn.k8s-btn{border-color:rgba(255,59,59,.4);color:#FF7070}
+.demo-btn.k8s-btn:hover,.demo-btn.k8s-btn.running{background:rgba(255,59,59,.1);border-color:var(--red);color:var(--red)}
+.demo-btn.llmd-btn{border-color:rgba(0,255,136,.4);color:rgba(0,255,136,.7)}
+.demo-btn.llmd-btn:hover,.demo-btn.llmd-btn.running{background:rgba(0,255,136,.08);border-color:var(--green);color:var(--green)}
+
+.anim-stage{
+  flex:1;position:relative;background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;
+  min-height:0;
+}
+.paths-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.paths-svg line{stroke:var(--border2);stroke-width:1.5;stroke-dasharray:4 4;opacity:.5;transition:stroke .4s,opacity .4s}
+.paths-svg line.active-path{stroke:var(--cyan);opacity:.9;stroke-dasharray:none}
+.paths-svg line.bad-path{stroke:var(--red);opacity:.8;stroke-dasharray:none}
+.paths-svg line.good-path{stroke:var(--green);opacity:.9;stroke-dasharray:none}
+
+/* nodes */
+.anim-node{position:absolute;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all .3s}
+.node-box{
+  padding:6px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);
+  font-size:9px;font-weight:600;letter-spacing:.06em;color:var(--text2);
+  transition:all .3s;white-space:nowrap;text-align:center;
+}
+.node-label{font-size:8px;color:var(--text3);letter-spacing:.05em;text-align:center;max-width:90px}
+
+.pod-box{
+  position:absolute;display:flex;flex-direction:column;gap:4px;align-items:center;
+  padding:10px 10px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg2);
+  transition:all .35s;width:110px;
+}
+.pod-name{font-size:10px;font-weight:700;color:var(--text2)}
+.cache-track{width:86px;height:7px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--border)}
+.cache-fill-bar{height:100%;border-radius:4px;transition:width .5s}
+.pod-pct{font-size:9px;color:var(--text3)}
+.pod-status{font-size:9px;font-weight:700;letter-spacing:.04em;height:14px;transition:all .3s;opacity:0}
+.pod-box.scanning{border-color:var(--amber)!important;box-shadow:0 0 12px rgba(255,184,0,.2)!important}
+.pod-box.winner{border-color:var(--green)!important;box-shadow:0 0 18px rgba(0,255,136,.25)!important}
+.pod-box.hit{border-color:var(--green)!important;box-shadow:0 0 22px rgba(0,255,136,.35)!important}
+.pod-box.loser{border-color:var(--red)!important;box-shadow:0 0 14px rgba(255,59,59,.2)!important}
+.pod-box.miss{border-color:var(--red)!important;box-shadow:0 0 18px rgba(255,59,59,.3)!important}
+
+/* request packet */
+.packet{
+  position:absolute;width:14px;height:14px;border-radius:50%;
+  background:var(--cyan);box-shadow:0 0 16px var(--cyan),0 0 32px rgba(0,229,255,.4);
+  opacity:0;transition:left .45s cubic-bezier(.4,0,.2,1),top .45s cubic-bezier(.4,0,.2,1),opacity .25s;
+  pointer-events:none;transform:translate(-50%,-50%);z-index:10;
+}
+.packet.red-pkt{background:var(--red);box-shadow:0 0 16px var(--red),0 0 32px rgba(255,59,59,.4)}
+.packet.green-pkt{background:var(--green);box-shadow:0 0 16px var(--green),0 0 32px rgba(0,255,136,.4)}
+
+/* result box */
+.result-box{
+  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  border-radius:10px;border:1.5px solid var(--border);background:var(--bg2);
+  padding:8px 20px;font-size:11px;font-weight:700;letter-spacing:.05em;
+  opacity:0;transition:opacity .4s;white-space:nowrap;text-align:center;
+}
+.result-box.show{opacity:1}
+.result-box.bad{border-color:var(--red);color:var(--red);background:rgba(255,59,59,.07)}
+.result-box.good{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.06)}
+.ttft-label{font-size:9px;color:var(--text3);display:block;margin-bottom:2px;font-weight:400}
+.progress-row{width:200px;height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:6px;display:block}
+.progress-fill-anim{height:100%;border-radius:3px;width:0}
+.pb-slow{background:var(--red);animation:fillSlow 2.4s ease forwards}
+.pb-fast{background:var(--green);animation:fillFast 0.7s ease forwards}
+@keyframes fillSlow{to{width:100%}}
+@keyframes fillFast{to{width:100%}}
+
+.router-node .node-box.scanning-mode{border-color:var(--amber);color:var(--amber);background:rgba(255,184,0,.08);box-shadow:0 0 14px rgba(255,184,0,.15)}
+.router-node .node-box.routing-bad{border-color:var(--red);color:var(--red);background:rgba(255,59,59,.08)}
+.router-node .node-box.routing-good{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.08)}
+
+/* demo desc */
+.demo-desc{font-size:10px;color:var(--text3);line-height:1.7;text-align:center;padding:0 8px;margin-top:8px;min-height:28px;transition:color .3s}
+.demo-desc.bad{color:rgba(255,59,59,.7)}
+.demo-desc.good{color:rgba(0,255,136,.7)}
+
+/* arabic inline */
+.ar{font-size:12px;color:var(--text2);direction:rtl;text-align:right}
+
+/* --- SLIDE 2: STATS --- */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+.stat-card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:18px 14px;text-align:center;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;inset:0;opacity:.04;border-radius:12px}
+.stat-card.blue::before{background:var(--cyan)}
+.stat-card.red::before{background:var(--red)}
+.stat-card.green::before{background:var(--green)}
+.stat-num{font-size:42px;font-weight:700;line-height:1}
+.stat-unit{font-size:20px;opacity:.6}
+.stat-desc{font-size:10px;color:var(--text2);margin-top:8px;line-height:1.5}
+.quote-box{background:var(--bg);border:1px solid var(--border);border-left:2px solid var(--cyan);border-radius:0 10px 10px 0;padding:14px 18px}
+.q-text{font-size:12px;color:var(--text2);line-height:1.7;font-style:italic}
+.q-src{font-size:9px;color:var(--text3);margin-top:8px}
+.devops-callout{margin-top:12px;padding:10px 14px;background:rgba(255,184,0,.06);border:1px solid rgba(255,184,0,.2);border-radius:8px;font-size:10px;color:var(--amber)}
+
+/* --- SLIDE 3: TOOLS --- */
+.tools-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}
+.tool-card{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:12px 8px;cursor:pointer;transition:all .2s;text-align:center}
+.tool-card:hover{transform:translateY(-2px);border-color:var(--border2)}
+.tool-card.sel{border-color:var(--cyan);background:rgba(0,229,255,.05)}
+.tool-card.sel-new{border-color:var(--green);background:rgba(0,255,136,.05)}
+.t-icon{font-size:20px;margin-bottom:6px}
+.t-name{font-size:9px;font-weight:600;color:var(--text2);letter-spacing:.03em}
+.tool-detail-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px 18px;flex:1;transition:opacity .25s}
+.td-badge{display:inline-block;font-size:9px;padding:3px 10px;border-radius:20px;border:1px solid rgba(0,255,136,.3);color:var(--green);background:rgba(0,255,136,.06);margin-bottom:8px}
+.td-name{font-size:14px;font-weight:700;margin-bottom:6px;color:var(--text)}
+.td-text{font-size:11px;color:var(--text2);line-height:1.7}
+
+/* --- SLIDE 4: llm-d STACK --- */
+.stack{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.stack-row{display:flex;align-items:center;gap:10px}
+.stack-lbl{font-size:9px;color:var(--text3);width:90px;text-align:right;flex-shrink:0;letter-spacing:.03em}
+.stack-box{flex:1;border:1px solid var(--border);border-radius:9px;padding:10px 14px;background:var(--bg);transition:all .3s}
+.stack-box.star{border-color:var(--cyan);border-width:1.5px;background:rgba(0,229,255,.04)}
+.stack-box.star::after{content:'NEW';font-size:8px;color:var(--cyan);font-weight:700;float:right;letter-spacing:.1em;margin-top:2px}
+.s-name{font-size:12px;font-weight:600}
+.s-desc{font-size:10px;color:var(--text2);margin-top:2px}
+.arrow-down{text-align:center;font-size:10px;color:var(--border2);padding:1px 0}
+.perf-row{margin-top:10px;display:flex;gap:8px}
+.perf-chip{font-size:9px;padding:5px 12px;border-radius:6px;border:1px solid var(--border);color:var(--text3)}
+.perf-chip.g{color:var(--green);border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.05)}
+.perf-chip.c{color:var(--cyan);border-color:rgba(0,229,255,.25);background:rgba(0,229,255,.05)}
+
+/* --- SLIDE 5: REQUEST TRACE --- */
+.log-stream{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.log-line{display:flex;gap:12px;align-items:flex-start;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 14px;opacity:0;transform:translateX(16px);transition:opacity .4s,transform .4s}
+.log-line.show{opacity:1;transform:translateX(0)}
+.log-step{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px}
+.log-content{flex:1}
+.log-main{font-size:11px;color:var(--text);font-weight:500}
+.log-sub{font-size:9px;color:var(--text3);margin-top:2px;font-style:italic}
+.log-tool{font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid var(--border2);color:var(--text3);float:right;font-style:normal;margin-top:1px}
+
+/* --- SLIDE 6: BEFORE/AFTER --- */
+.ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;flex:1}
+.ba-col{border-radius:12px;padding:16px;border:1px solid var(--border);display:flex;flex-direction:column;gap:2px}
+.ba-col.before{background:rgba(255,59,59,.03);border-color:rgba(255,59,59,.2)}
+.ba-col.after{background:rgba(0,255,136,.03);border-color:rgba(0,255,136,.2)}
+.ba-head{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+.ba-head.bad{color:var(--red)}
+.ba-head.good{color:var(--green)}
+.ba-item{font-size:10px;line-height:1.5;padding:7px 0;border-bottom:1px solid var(--border);color:var(--text2)}
+.ba-item:last-child{border-bottom:none}
+.ba-item.b{color:rgba(255,59,59,.7)}
+.ba-item.g{color:rgba(0,255,136,.8)}
+
+/* --- SLIDE 7: QUIZ --- */
+.quiz-area{flex:1;display:flex;flex-direction:column}
+.q-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.q-prog-dots{display:flex;gap:6px}
+.q-dot{width:28px;height:6px;border-radius:3px;background:var(--border);transition:all .3s}
+.q-dot.done{background:var(--green)}
+.q-dot.cur{background:var(--cyan)}
+.q-score{font-size:11px;color:var(--text3)}
+.q-score span{color:var(--cyan);font-weight:700}
+.q-question{font-size:13px;font-weight:600;line-height:1.55;margin-bottom:16px;color:var(--text)}
+.q-options{display:flex;flex-direction:column;gap:8px}
+.q-option{
+  padding:10px 14px;border-radius:9px;border:1.5px solid var(--border);background:var(--bg);
+  font-size:11px;color:var(--text2);cursor:pointer;transition:all .2s;
+  display:flex;gap:10px;align-items:flex-start;
+}
+.q-option:hover{border-color:var(--border2);background:var(--bg3);color:var(--text)}
+.q-option.correct{border-color:var(--green)!important;background:rgba(0,255,136,.07)!important;color:var(--green)!important}
+.q-option.wrong{border-color:var(--red)!important;background:rgba(255,59,59,.07)!important;color:var(--red)!important}
+.q-option.disabled{pointer-events:none;opacity:.5}
+.q-option.disabled.correct{opacity:1}
+.opt-letter{width:18px;height:18px;border-radius:4px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--text3);flex-shrink:0}
+.q-feedback{margin-top:12px;padding:10px 14px;border-radius:8px;font-size:10px;line-height:1.6;opacity:0;transition:opacity .3s;min-height:40px}
+.q-feedback.show{opacity:1}
+.q-feedback.ok{background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.2);color:rgba(0,255,136,.9)}
+.q-feedback.no{background:rgba(255,59,59,.07);border:1px solid rgba(255,59,59,.2);color:rgba(255,59,59,.9)}
+.q-nav-row{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:12px}
+.q-next{padding:8px 18px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);border-radius:8px;color:var(--cyan);font-family:var(--font);font-size:11px;cursor:pointer;transition:all .2s;font-weight:600}
+.q-next:hover{background:rgba(0,229,255,.18)}
+.q-next:disabled{opacity:.3;cursor:default}
+.score-final{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;text-align:center;gap:10px}
+.score-big{font-size:52px;font-weight:700}
+.score-label{font-size:13px;color:var(--text2)}
+.score-bar{width:160px;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.score-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--cyan),var(--green));transition:width 1s ease}
+.score-msg{font-size:11px;color:var(--text3);max-width:340px;line-height:1.6}
+
+/* --- SLIDE 8: TAKEAWAYS --- */
+.tk-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.tk-item{display:flex;gap:14px;background:var(--bg);border:1px solid var(--border);border-left:3px solid;border-radius:0 10px 10px 0;padding:12px 16px;opacity:0;transform:translateY(8px);transition:opacity .5s,transform .5s}
+.tk-item.show{opacity:1;transform:translateY(0)}
+.tk-item:nth-child(1){border-left-color:var(--cyan)}
+.tk-item:nth-child(2){border-left-color:var(--green)}
+.tk-item:nth-child(3){border-left-color:var(--purple)}
+.tk-n{font-size:18px;font-weight:700;color:var(--border2);flex-shrink:0;line-height:1.2;width:20px}
+.tk-body{}
+.tk-title{font-size:12px;font-weight:700;margin-bottom:3px}
+.tk-sub{font-size:10px;color:var(--text2);line-height:1.6}
+.res-row{display:flex;gap:8px;margin-top:10px}
+.res-chip{font-size:9px;padding:5px 12px;border:1px solid var(--border2);border-radius:6px;color:var(--text3);background:var(--bg)}
+.res-chip span{color:var(--cyan)}
+
+/* NAV */
+.nav-bar{display:flex;align-items:center;justify-content:space-between;padding:8px 4px 0;flex-shrink:0}
+.nav-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 16px;font-size:11px;color:var(--text3);cursor:pointer;font-family:var(--font);transition:all .2s}
+.nav-btn:hover:not(:disabled){border-color:var(--border2);color:var(--text)}
+.nav-btn:disabled{opacity:.2;cursor:default}
+.nav-dots{display:flex;gap:4px;align-items:center}
+.nav-dot{width:5px;height:5px;border-radius:50%;background:var(--border);cursor:pointer;transition:all .25s}
+.nav-dot.act{background:var(--cyan);width:16px;border-radius:3px}
+
+/* animations */
+@keyframes glitch{
+  0%,90%,100%{clip-path:inset(0 0 100% 0)}
+  91%{clip-path:inset(20% 0 60% 0)}
+  93%{clip-path:inset(40% 0 30% 0)}
+  95%{clip-path:inset(10% 0 80% 0)}
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp .5s ease forwards}
+.delay-1{animation-delay:.1s;opacity:0}
+.delay-2{animation-delay:.2s;opacity:0}
+.delay-3{animation-delay:.35s;opacity:0}
+.delay-4{animation-delay:.5s;opacity:0}
+.delay-5{animation-delay:.65s;opacity:0}
+
+/* responsive tweaks */
+@media(max-height:620px){
+  .slide{padding:22px 30px}
+  .h1{font-size:22px}
+  .title-hero{font-size:26px}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="topbar-left">⬡ CNCF JORDAN · LIGHTNING TALKS #4 · <span>LIVE DEMO</span></div>
+    <div class="slide-counter" id="slideCounter">01 / 09</div>
+  </div>
+  <div class="prog-track"><div class="prog-bar" id="progBar" style="width:11.1%"></div></div>
+
+  <div class="stage" id="stage">
+
+    <!-- SLIDE 0: TITLE -->
+    <div class="slide active" id="s0">
+      <div class="slide-tag cyan">CNCF Jordan · Lightning Talks #4 · April 2026</div>
+      <div class="title-glyph">$ kubectl get future <span>--namespace=ai-era</span> <span class="blink">▌</span></div>
+      <div class="title-hero fade-up delay-1">From Model to Production:<br><span class="accent">Cloud Native Infrastructure<br>for the AI Era</span></div>
+      <div class="title-tagline fade-up delay-2">"Last month at KubeCon Amsterdam, three companies donated a framework to CNCF that changes how AI inference works at scale. By the end of this session — you'll know exactly why it matters for your stack."</div>
+      <div class="title-meta fade-up delay-3">
+        <span class="meta-chip hi">Haneen Dahbour</span>
+        <span class="meta-chip">AI Engineer & Practitioner</span>
+        <span class="meta-chip">Amman, Jordan</span>
+      </div>
+      <div class="agenda-row fade-up delay-4">
+        <span class="agenda-pill active-pill">Restaurant Demo →</span>
+        <span class="agenda-pill">The Gap</span>
+        <span class="agenda-pill">CNCF Stack</span>
+        <span class="agenda-pill">llm-d Deep Dive</span>
+        <span class="agenda-pill">Request Trace</span>
+        <span class="agenda-pill">Before/After</span>
+        <span class="agenda-pill">Quiz</span>
+        <span class="agenda-pill">Takeaways</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 1: RESTAURANT ANIMATION -->
+    <div class="slide" id="s1">
+      <div class="slide-tag" id="demoTag">Interactive Demo · Kubernetes Routing vs llm-d</div>
+      <div class="sub" style="margin-bottom:10px">
+        <span class="ar">جرّب الضغط على الزرّين — شاهد كيف يفكّر كل نظام عند توجيه الطلب</span>
+      </div>
+      <div class="demo-controls">
+        <button class="demo-btn k8s-btn" id="btnK8s" onclick="runK8s()">⊗ &nbsp;Kubernetes التقليدي — النادل الأعمى</button>
+        <button class="demo-btn llmd-btn" id="btnLlmd" onclick="runLlmd()">⚡ &nbsp;مع llm-d — المُضيف الذكي</button>
+      </div>
+      <div class="anim-stage" id="animStage">
+        <svg class="paths-svg" id="pathsSvg" viewBox="0 0 700 260" preserveAspectRatio="none">
+          <!-- client → router -->
+          <line id="l-cr" x1="350" y1="40" x2="350" y2="88"/>
+          <!-- router → pods -->
+          <line id="l-ra" x1="350" y1="112" x2="120" y2="182"/>
+          <line id="l-rb" x1="350" y1="112" x2="350" y2="182"/>
+          <line id="l-rc" x1="350" y1="112" x2="580" y2="182"/>
+        </svg>
+
+        <!-- client -->
+        <div class="anim-node" style="left:50%;top:2px;transform:translateX(-50%)">
+          <div class="node-box" style="font-size:10px">💻 USER REQUEST</div>
+        </div>
+
+        <!-- router -->
+        <div class="anim-node router-node" style="left:50%;top:72px;transform:translateX(-50%)">
+          <div class="node-box" id="routerBox">⎈ K8s Load Balancer</div>
+        </div>
+
+        <!-- pods -->
+        <div class="pod-box" id="podA" style="left:65px;top:170px">
+          <div class="pod-name" style="color:var(--green)">Pod A 🔥</div>
+          <div class="cache-track"><div class="cache-fill-bar" id="fillA" style="width:85%;background:linear-gradient(90deg,#00FF88,#00E5FF)"></div></div>
+          <div class="pod-pct">KV Cache: 85%</div>
+          <div class="pod-status" id="statusA"></div>
+        </div>
+        <div class="pod-box" id="podB" style="left:295px;top:170px">
+          <div class="pod-name" style="color:var(--amber)">Pod B 🌡</div>
+          <div class="cache-track"><div class="cache-fill-bar" id="fillB" style="width:30%;background:var(--amber)"></div></div>
+          <div class="pod-pct">KV Cache: 30%</div>
+          <div class="pod-status" id="statusB"></div>
+        </div>
+        <div class="pod-box" id="podC" style="left:525px;top:170px">
+          <div class="pod-name" style="color:var(--red)">Pod C ❄️</div>
+          <div class="cache-track"><div class="cache-fill-bar" id="fillC" style="width:5%;background:var(--red)"></div></div>
+          <div class="pod-pct">KV Cache: 5%</div>
+          <div class="pod-status" id="statusC"></div>
+        </div>
+
+        <!-- packet -->
+        <div class="packet" id="packet"></div>
+
+        <!-- result -->
+        <div class="result-box" id="resultBox">
+          <span class="ttft-label" id="resultLabel">TTFT</span>
+          <span id="resultValue">—</span>
+          <span class="progress-row"><span class="progress-fill-anim" id="progFill"></span></span>
+        </div>
+      </div>
+      <div class="demo-desc" id="demoDesc">المُقارنة: في K8s التقليدي، النادل يوزّع عشوائياً ← قد يصل طلبك للـ Pod الخطأ → إعادة البناء من الصفر. في llm-d، المُضيف الذكي يرى الـ KV Cache في كل Pod ← يوجّهك مباشرةً للأدفأ.</div>
+    </div>
+
+    <!-- SLIDE 2: STATS -->
+    <div class="slide" id="s2">
+      <div class="slide-tag amber">Section 2 · The Gap That Exists</div>
+      <div class="h1">The production gap<br>is a <span style="color:var(--cyan)">DevOps problem</span></div>
+      <div class="sub">Not a data science problem. The model works. Getting it to production — reliably, at scale — that's your domain.</div>
+      <div class="stats-grid">
+        <div class="stat-card blue">
+          <div class="stat-num"><span id="c1">0</span><span class="stat-unit">%</span></div>
+          <div class="stat-desc">of orgs <strong>consume</strong> models — they don't train them. Your job: run them in production.</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-num"><span id="c2">0</span><span class="stat-unit">%</span></div>
+          <div class="stat-desc">deploy AI workloads <strong>daily</strong>. That means 93% are blocked — infrastructure, not capability.</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-num"><span id="c3">0</span><span class="stat-unit">%</span></div>
+          <div class="stat-desc">TTFT reduction from llm-d v0.4 on DeepSeek V3 — H200 GPUs. Real benchmark.</div>
+        </div>
+      </div>
+      <div class="quote-box">
+        <div class="q-text">"AI is being developed by data scientists… but eventually it's going to be a CIO's problem. And what language do CIOs speak? They speak Kubernetes."</div>
+        <div class="q-src">— Brian Stevens, SVP & AI CTO, Red Hat · KubeCon EU Amsterdam · March 2026</div>
+      </div>
+      <div class="devops-callout">⚙️ DevOps take: Kubernetes isn't a buzzword here — it's the delivery mechanism for AI. If you know K8s, you already speak the language of production AI.</div>
+    </div>
+
+    <!-- SLIDE 3: TOOLS -->
+    <div class="slide" id="s3">
+      <div class="slide-tag cyan">Section 3 · The CNCF Stack</div>
+      <div class="h1">Five tools. One <span style="color:var(--green)">complete stack.</span></div>
+      <div class="sub">Click each tool to see what problem it solves in your cluster.</div>
+      <div class="tools-row">
+        <div class="tool-card sel" id="tc0" onclick="selectTool(0)"><div class="t-icon">⎈</div><div class="t-name">Kubernetes</div></div>
+        <div class="tool-card" id="tc1" onclick="selectTool(1)"><div class="t-icon">⟳</div><div class="t-name">Kubeflow</div></div>
+        <div class="tool-card" id="tc2" onclick="selectTool(2)"><div class="t-icon">⚡</div><div class="t-name">llm-d</div></div>
+        <div class="tool-card" id="tc3" onclick="selectTool(3)"><div class="t-icon">◉</div><div class="t-name">Prom + OTel</div></div>
+        <div class="tool-card" id="tc4" onclick="selectTool(4)"><div class="t-icon">◈</div><div class="t-name">OPA + SPIFFE</div></div>
+      </div>
+      <div class="tool-detail-box" id="toolDetail" style="flex:1">
+        <div class="td-name" id="tdName">Kubernetes</div>
+        <div class="td-text" id="tdText">The operating system for your AI workloads. Originally built for stateless microservices — but AI is stateful, GPU-hungry, and latency-sensitive. Kubernetes provides scheduling, scaling, networking, and health management. The gap: it doesn't understand what a KV cache is. That's why the rest of this stack exists.</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: llm-d STACK -->
+    <div class="slide" id="s4">
+      <div class="slide-tag green">Section 3 · llm-d Deep Dive</div>
+      <div class="h1">The llm-d <span style="color:var(--cyan)">layer stack</span></div>
+      <div class="sub">Donated to CNCF Sandbox at KubeCon Amsterdam · March 24, 2026 · Partners: Red Hat, IBM, Google Cloud, NVIDIA, CoreWeave, AMD, Cisco, HuggingFace, Mistral</div>
+      <div class="stack">
+        <div class="stack-row">
+          <div class="stack-lbl">CONTROL PLANE</div>
+          <div class="stack-box">
+            <div class="s-name">KServe</div>
+            <div class="s-desc">Model lifecycle · versioning · canary rollouts · A/B serving</div>
+          </div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="stack-row">
+          <div class="stack-lbl">SMART ROUTING</div>
+          <div class="stack-box star">
+            <div class="s-name" style="color:var(--cyan)">llm-d — Endpoint Picker (EPP)</div>
+            <div class="s-desc" style="color:var(--text2)">KV cache-aware routing · Prefill/Decode disaggregation · inference-aware scheduler · any model, any accelerator, any cloud</div>
+          </div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="stack-row">
+          <div class="stack-lbl">INFERENCE ENGINE</div>
+          <div class="stack-box">
+            <div class="s-name">vLLM</div>
+            <div class="s-desc">PagedAttention · continuous batching · fast token generation</div>
+          </div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="stack-row">
+          <div class="stack-lbl">ORCHESTRATION</div>
+          <div class="stack-box">
+            <div class="s-name">Kubernetes + LeaderWorkerSet (LWS)</div>
+            <div class="s-desc">Multi-node coordination · GPU scheduling · workload placement</div>
+          </div>
+        </div>
+        <div class="arrow-down">↓</div>
+        <div class="stack-row">
+          <div class="stack-lbl">OBSERVABILITY</div>
+          <div class="stack-box">
+            <div class="s-name">Prometheus + OpenTelemetry</div>
+            <div class="s-desc">TTFT · tokens/sec · KV cache hit rate · queue depth → Grafana</div>
+          </div>
+        </div>
+      </div>
+      <div class="perf-row">
+        <div class="perf-chip g">✓ 40% TTFT reduction · DeepSeek V3 · H200</div>
+        <div class="perf-chip c">~120k tok/s on B200s</div>
+        <div class="perf-chip g">Qwen3-32B on 16×H100 · v0.5</div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: REQUEST TRACE -->
+    <div class="slide" id="s5">
+      <div class="slide-tag purple">Section 4 · Live Trace</div>
+      <div class="h1">One request. <span style="color:var(--cyan)">Seven hops.</span></div>
+      <div class="sub">Every CNCF tool in your stack — visible. Press the button to stream the trace.</div>
+      <div class="log-stream" id="logStream">
+        <div class="log-line" id="ll0">
+          <div class="log-step" style="background:rgba(0,229,255,.1);color:var(--cyan)">1</div>
+          <div class="log-content">
+            <div class="log-main">User sends a prompt <span class="log-tool">client</span></div>
+            <div class="log-sub">POST /v1/completions · {"model":"llama-3","messages":[...]}</div>
+          </div>
+        </div>
+        <div class="log-line" id="ll1">
+          <div class="log-step" style="background:rgba(0,229,255,.1);color:var(--cyan)">2</div>
+          <div class="log-content">
+            <div class="log-main">Kubernetes Gateway API receives request <span class="log-tool">k8s-gateway</span></div>
+            <div class="log-sub">TLS termination · load balancing · routing rules evaluated</div>
+          </div>
+        </div>
+        <div class="log-line" id="ll2">
+          <div class="log-step" style="background:rgba(189,147,249,.1);color:var(--purple)">3</div>
+          <div class="log-content">
+            <div class="log-main">OPA evaluates policy · SPIFFE verifies workload identity <span class="log-tool">opa + spiffe</span></div>
+            <div class="log-sub">ALLOW: agent "chat-svc" → model "llama-3-70b" · identity verified via X.509 SVID</div>
+          </div>
+        </div>
+        <div class="log-line" id="ll3">
+          <div class="log-step" style="background:rgba(0,255,136,.1);color:var(--green)">4</div>
+          <div class="log-content">
+            <div class="log-main">llm-d EPP routes intelligently <span class="log-tool">llm-d epp</span></div>
+            <div class="log-sub">Scanned 3 pods → pod-a KV hit 85% → selected · 0.8ms routing decision</div>
+          </div>
+        </div>
+        <div class="log-line" id="ll4">
+          <div class="log-step" style="background:rgba(0,255,136,.1);color:var(--green)">5</div>
+          <div class="log-content">
+            <div class="log-main">vLLM processes on pod-a: prefill → decode <span class="log-tool">vllm</span></div>
+            <div class="log-sub">Prefill: 120ms · KV cache partial hit · Decode: streaming tokens back</div>
+          </div>
+        </div>
+        <div class="log-line" id="ll5">
+          <div class="log-step" style="background:rgba(0,229,255,.1);color:var(--cyan)">6</div>
+          <div class="log-content">
+            <div class="log-main">Token stream returns to user <span class="log-tool">response</span></div>
+            <div class="log-sub">TTFT: 0.8s · throughput: 94 tok/s · no queue delay</div>
+          </div>
+        </div>
+        <div class="log-line" id="ll6">
+          <div class="log-step" style="background:rgba(255,184,0,.1);color:var(--amber)">7</div>
+          <div class="log-content">
+            <div class="log-main">Prometheus records all metrics <span class="log-tool">prometheus + otel</span></div>
+            <div class="log-sub">ttft_seconds=0.8 · kv_cache_hit_rate=0.85 · queue_depth=0 → Grafana dashboard</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: BEFORE/AFTER -->
+    <div class="slide" id="s6">
+      <div class="slide-tag amber">Section 4 · Comparison</div>
+      <div class="h1">Same cluster. <span style="color:var(--cyan)">Different intelligence.</span></div>
+      <div class="sub">What changes when llm-d sits between your LB and vLLM.</div>
+      <div class="ba-grid">
+        <div class="ba-col before">
+          <div class="ba-head bad">⊗ Without llm-d</div>
+          <div class="ba-item b">Kubernetes routes blindly — no KV cache knowledge</div>
+          <div class="ba-item b">All pods treated equally regardless of cache state</div>
+          <div class="ba-item b">Cold pod = full context rebuild from scratch</div>
+          <div class="ba-item b">Prefill and decode compete for same GPU memory</div>
+          <div class="ba-item b">TTFT spikes unpredictably under load</div>
+          <div class="ba-item b">Every team invents their own workaround</div>
+          <div class="ba-item b">Vendor lock-in risk — no open governance</div>
+        </div>
+        <div class="ba-col after">
+          <div class="ba-head good">✓ With llm-d</div>
+          <div class="ba-item g">EPP routes to warmest KV cache every time</div>
+          <div class="ba-item g">Cache-aware pod selection in &lt;1ms</div>
+          <div class="ba-item g">Cache hit = no rebuild — 40% TTFT reduction</div>
+          <div class="ba-item g">Prefill and decode split across dedicated pods</div>
+          <div class="ba-item g">Latency stays stable under high load</div>
+          <div class="ba-item g">CNCF Sandbox — open governance, community-owned</div>
+          <div class="ba-item g">Any model · any accelerator · any cloud</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7: QUIZ -->
+    <div class="slide" id="s7">
+      <div class="slide-tag cyan">Section 5 · Knowledge Check</div>
+      <div class="h1"><span style="color:var(--cyan)">Quiz</span> — Three questions</div>
+      <div class="quiz-area" id="quizArea">
+        <div class="q-header">
+          <div class="q-prog-dots">
+            <div class="q-dot cur" id="qd0"></div>
+            <div class="q-dot" id="qd1"></div>
+            <div class="q-dot" id="qd2"></div>
+          </div>
+          <div class="q-score">Score: <span id="scoreDisp">0</span> / 3</div>
+        </div>
+        <div id="quizContent"></div>
+        <div class="q-nav-row">
+          <div style="font-size:10px;color:var(--text3)" id="qHint">Select an answer to continue</div>
+          <button class="q-next" id="qNextBtn" onclick="nextQ()" disabled>Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8: TAKEAWAYS -->
+    <div class="slide" id="s8">
+      <div class="slide-tag green">Section 6 · Wrap Up</div>
+      <div class="h1">Three things to <span style="color:var(--cyan)">remember</span></div>
+      <div class="sub">Leave with these. Everything else is a detail you can look up.</div>
+      <div class="tk-list">
+        <div class="tk-item" id="tk0">
+          <div class="tk-n">01</div>
+          <div class="tk-body">
+            <div class="tk-title" style="color:var(--cyan)">The AI infrastructure gap is your career opportunity</div>
+            <div class="tk-sub">52% consume models. Only 7% deploy daily. The 93% gap is not a data science problem — it's a cloud native engineering problem. That's your domain.</div>
+          </div>
+        </div>
+        <div class="tk-item" id="tk1">
+          <div class="tk-n">02</div>
+          <div class="tk-body">
+            <div class="tk-title" style="color:var(--green)">The CNCF stack already has the tools</div>
+            <div class="tk-sub">Kubernetes + Kubeflow + llm-d + Prometheus/OTel + OPA/SPIFFE. Production-grade AI infrastructure is available now. You don't build from scratch.</div>
+          </div>
+        </div>
+        <div class="tk-item" id="tk2">
+          <div class="tk-n">03</div>
+          <div class="tk-body">
+            <div class="tk-title" style="color:var(--purple)">llm-d is brand new — you're hearing this early</div>
+            <div class="tk-sub">Donated to CNCF March 2026. This is not established knowledge yet. You are at the right meetup at the right time.</div>
+          </div>
+        </div>
+      </div>
+      <div class="res-row">
+        <div class="res-chip"><span>github</span>  github.com/llm-d/llm-d</div>
+        <div class="res-chip"><span>site</span>  llm-d.ai</div>
+        <div class="res-chip"><span>blog</span>  cncf.io/blog → llm-d</div>
+        <div class="res-chip"><span>video</span>  CNCF YouTube · KubeCon EU 2026</div>
+      </div>
+    </div>
+
+  </div><!-- /stage -->
+
+  <div class="nav-bar">
+    <button class="nav-btn" id="prevBtn" onclick="goSlide(-1)" disabled>← Prev</button>
+    <div class="nav-dots" id="navDots"></div>
+    <button class="nav-btn" id="nextBtn" onclick="goSlide(1)">Next →</button>
+  </div>
+</div>
+
+<script>
+// =======================================
+// SLIDE NAVIGATION
+// =======================================
+const TOTAL = 9;
+let cur = 0;
+
+function buildDots(){
+  const el = document.getElementById('navDots');
+  el.innerHTML = '';
+  for(let i = 0; i < TOTAL; i++){
+    const d = document.createElement('div');
+    d.className = 'nav-dot' + (i === cur ? ' act' : '');
+    d.onclick = () => jumpTo(i);
+    el.appendChild(d);
+  }
+}
+
+function jumpTo(n, dir = n > cur ? 1 : -1){
+  if(n < 0 || n >= TOTAL) return;
+  const prev = document.getElementById('s'+cur);
+  prev.classList.remove('active');
+  prev.classList.add('out-left');
+  setTimeout(() => prev.classList.remove('out-left'), 400);
+  cur = n;
+  const next = document.getElementById('s'+cur);
+  next.style.transform = dir > 0 ? 'translateX(30px)' : 'translateX(-30px)';
+  next.classList.add('active');
+  setTimeout(() => next.style.transform = '', 20);
+  document.getElementById('progBar').style.width = ((cur+1)/TOTAL*100) + '%';
+  document.getElementById('prevBtn').disabled = cur === 0;
+  document.getElementById('nextBtn').disabled = cur === TOTAL-1;
+  document.getElementById('slideCounter').textContent = String(cur+1).padStart(2,'0') + ' / ' + String(TOTAL).padStart(2,'0');
+  buildDots();
+  onSlideEnter(cur);
+}
+
+function goSlide(dir){ jumpTo(cur + dir, dir); }
+
+function onSlideEnter(n){
+  if(n === 2) animateCounters();
+  if(n === 5) animateSteps();
+  if(n === 7){ initQuiz(); }
+  if(n === 8) animateTakeaways();
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'ArrowRight' || e.key === 'ArrowDown') goSlide(1);
+  if(e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   goSlide(-1);
+});
+
+buildDots();
+
+// =======================================
+// RESTAURANT ANIMATION
+// =======================================
+let animRunning = false;
+let animTimers = [];
+
+function clearAnim(){
+  animTimers.forEach(clearTimeout);
+  animTimers = [];
+  animRunning = false;
+  // reset packet
+  const pkt = document.getElementById('packet');
+  pkt.style.opacity = '0';
+  pkt.className = 'packet';
+  // reset pods
+  ['A','B','C'].forEach(p => {
+    const pod = document.getElementById('pod'+p);
+    pod.className = 'pod-box';
+    const st = document.getElementById('status'+p);
+    st.style.opacity = '0';
+    st.textContent = '';
+  });
+  // reset router
+  document.getElementById('routerBox').className = 'node-box';
+  // reset result
+  const rb = document.getElementById('resultBox');
+  rb.className = 'result-box';
+  rb.style.opacity = '0';
+  // reset lines
+  ['l-cr','l-ra','l-rb','l-rc'].forEach(id => {
+    const el = document.getElementById(id);
+    el.className.baseVal = '';
+  });
+  document.getElementById('progFill').className = 'progress-fill-anim';
+}
+
+function schedAnim(fn, delay){
+  animTimers.push(setTimeout(fn, delay));
+}
+
+// Get positions relative to animStage
+function getStageCenter(el){
+  const stage = document.getElementById('animStage');
+  const sr = stage.getBoundingClientRect();
+  const er = el.getBoundingClientRect();
+  return {
+    x: er.left - sr.left + er.width/2,
+    y: er.top  - sr.top  + er.height/2
+  };
+}
+
+function movePkt(nodeEl){
+  const pkt = document.getElementById('packet');
+  const pos = getStageCenter(nodeEl);
+  pkt.style.left = pos.x + 'px';
+  pkt.style.top  = pos.y + 'px';
+}
+
+function spawnPkt(nodeEl){
+  const pkt = document.getElementById('packet');
+  const pos = getStageCenter(document.querySelector('.anim-node:first-child .node-box'));
+  pkt.style.left = pos.x + 'px';
+  pkt.style.top  = pos.y + 'px';
+  pkt.style.opacity = '1';
+}
+
+function setPktColor(cls){
+  const pkt = document.getElementById('packet');
+  pkt.className = 'packet ' + cls;
+}
+
+function showStatus(pod, txt, color){
+  const st = document.getElementById('status'+pod);
+  st.textContent = txt;
+  st.style.color = color;
+  st.style.opacity = '1';
+}
+
+function runK8s(){
+  if(animRunning) clearAnim();
+  setTimeout(() => {
+    animRunning = true;
+    document.getElementById('btnK8s').classList.add('running');
+    document.getElementById('btnLlmd').classList.remove('running');
+    document.getElementById('demoDesc').className = 'demo-desc bad';
+    document.getElementById('demoDesc').textContent = '⚠️ K8s التقليدي: اللود بالانسر لا يعلم بمحتوى الـ KV Cache — يوزّع الطلبات عشوائياً. وصلنا Pod C الفارغ → Cache Miss → إعادة بناء كاملة من الصفر…';
+    document.getElementById('routerBox').textContent = '⎈ K8s Load Balancer';
+    
+    // spawn at client
+    schedAnim(() => {
+      spawnPkt();
+      setPktColor('red-pkt');
+      const routerEl = document.querySelector('.router-node .node-box');
+      movePkt(routerEl);
+      document.getElementById('l-cr').classList.add('bad-path');
+    }, 100);
+    
+    // at router — random routing
+    schedAnim(() => {
+      document.getElementById('routerBox').className = 'node-box routing-bad';
+      document.getElementById('routerBox').textContent = '⎈ Round Robin... Pod C';
+    }, 600);
+    
+    // move to pod C (random/wrong)
+    schedAnim(() => {
+      movePkt(document.getElementById('podC'));
+      document.getElementById('l-rc').classList.add('bad-path');
+    }, 950);
+    
+    // pod C — cache miss
+    schedAnim(() => {
+      document.getElementById('podC').classList.add('miss');
+      showStatus('C', '❌ CACHE MISS', 'var(--red)');
+    }, 1400);
+    
+    // rebuild progress
+    schedAnim(() => {
+      const rb = document.getElementById('resultBox');
+      rb.className = 'result-box bad show';
+      document.getElementById('resultLabel').textContent = 'Rebuilding from scratch...';
+      document.getElementById('resultValue').textContent = '';
+      document.getElementById('progFill').className = 'progress-fill-anim pb-slow';
+    }, 1700);
+    
+    // final
+    schedAnim(() => {
+      document.getElementById('resultLabel').textContent = 'TTFT (Time to First Token)';
+      document.getElementById('resultValue').textContent = '3.2 seconds';
+    }, 4200);
+    
+    schedAnim(() => { animRunning = false; }, 4500);
+  }, 50);
+}
+
+function runLlmd(){
+  if(animRunning) clearAnim();
+  setTimeout(() => {
+    animRunning = true;
+    document.getElementById('btnLlmd').classList.add('running');
+    document.getElementById('btnK8s').classList.remove('running');
+    document.getElementById('demoDesc').className = 'demo-desc good';
+    document.getElementById('demoDesc').textContent = '✓ مع llm-d: الـ EPP يقرأ حالة الـ KV Cache في كل Pod قبل التوجيه — Pod A عنده 85% دافئة → Cache Hit مباشر → توفير 75% من وقت الاستجابة.';
+    document.getElementById('routerBox').textContent = '⚡ llm-d EPP';
+
+    // spawn at client
+    schedAnim(() => {
+      spawnPkt();
+      setPktColor('');
+      const routerEl = document.querySelector('.router-node .node-box');
+      movePkt(routerEl);
+      document.getElementById('l-cr').classList.add('active-path');
+    }, 100);
+
+    // EPP scanning
+    schedAnim(() => {
+      document.getElementById('routerBox').className = 'node-box scanning-mode';
+      document.getElementById('routerBox').textContent = '🔍 EPP: Scanning KV Cache...';
+    }, 600);
+    
+    schedAnim(() => {
+      document.getElementById('podA').classList.add('scanning');
+      showStatus('A', '85% ▓▓▓▓▓▓▓▓', 'var(--amber)');
+    }, 900);
+    schedAnim(() => {
+      document.getElementById('podB').classList.add('scanning');
+      showStatus('B', '30% ▓▓▓░░░░░', 'var(--amber)');
+    }, 1100);
+    schedAnim(() => {
+      document.getElementById('podC').classList.add('scanning');
+      showStatus('C', '5%  ▓░░░░░░░', 'var(--amber)');
+    }, 1300);
+    
+    // decision
+    schedAnim(() => {
+      document.getElementById('podA').classList.remove('scanning');
+      document.getElementById('podB').classList.remove('scanning');
+      document.getElementById('podC').classList.remove('scanning');
+      document.getElementById('podA').classList.add('winner');
+      showStatus('A', '⭐ SELECTED', 'var(--green)');
+      document.getElementById('routerBox').className = 'node-box routing-good';
+      document.getElementById('routerBox').textContent = '⚡ → Pod A (85% warm)';
+    }, 1600);
+
+    // move to pod A
+    schedAnim(() => {
+      setPktColor('green-pkt');
+      movePkt(document.getElementById('podA'));
+      document.getElementById('l-ra').classList.add('good-path');
+    }, 1900);
+    
+    // cache hit
+    schedAnim(() => {
+      document.getElementById('podA').classList.remove('winner');
+      document.getElementById('podA').classList.add('hit');
+      showStatus('A', '✓ CACHE HIT', 'var(--green)');
+    }, 2400);
+    
+    // fast progress
+    schedAnim(() => {
+      const rb = document.getElementById('resultBox');
+      rb.className = 'result-box good show';
+      document.getElementById('resultLabel').textContent = 'Token stream starting...';
+      document.getElementById('resultValue').textContent = '';
+      document.getElementById('progFill').className = 'progress-fill-anim pb-fast';
+    }, 2700);
+    
+    schedAnim(() => {
+      document.getElementById('resultLabel').textContent = 'TTFT (Time to First Token)';
+      document.getElementById('resultValue').textContent = '0.8 seconds ↓ 75%';
+    }, 3500);
+    
+    schedAnim(() => { animRunning = false; }, 3800);
+  }, 50);
+}
+
+// =======================================
+// COUNTER ANIMATIONS
+// =======================================
+function animateCounters(){
+  function count(id, target, dur, suffix){
+    let start = null;
+    const el = document.getElementById(id);
+    if(!el) return;
+    const step = ts => {
+      if(!start) start = ts;
+      const p = Math.min((ts-start)/dur, 1);
+      el.textContent = Math.round(p * target) + (suffix||'');
+      if(p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  count('c1', 52, 1200);
+  count('c2', 7, 1000);
+  count('c3', 40, 1400);
+}
+
+// =======================================
+// REQUEST TRACE ANIMATION
+// =======================================
+function animateSteps(){
+  for(let i = 0; i < 7; i++){
+    const el = document.getElementById('ll'+i);
+    if(el) el.classList.remove('show');
+  }
+  for(let i = 0; i < 7; i++){
+    (function(idx){
+      setTimeout(() => {
+        const el = document.getElementById('ll'+idx);
+        if(el) el.classList.add('show');
+      }, idx * 180);
+    })(i);
+  }
+}
+
+// =======================================
+// TOOLS SECTION
+// =======================================
+const toolData = [
+  {name:'Kubernetes', badge:null, text:'The operating system for your AI workloads. Originally built for stateless microservices — but AI is stateful, GPU-hungry, and latency-sensitive. Kubernetes handles scheduling, scaling, networking, health. The gap: it has no concept of KV cache state. That\'s why the rest of this stack exists.'},
+  {name:'Kubeflow', badge:null, text:'Your MLOps control tower. Pipelines, experiment tracking, Katib for hyperparameter tuning, multi-user model serving. Bridges the data science world and platform engineering — from training runs to production Kubernetes deployments with reusable pipeline components.'},
+  {name:'llm-d ⚡', badge:'CNCF Sandbox · March 2026', text:'Donated to CNCF at KubeCon Amsterdam by IBM Research, Red Hat & Google Cloud. Sits between vLLM and Kubernetes — the "smart host" layer. Kubernetes doesn\'t know what a KV cache is. llm-d does. EPP routes to the warmest pod in <1ms. Prefill/Decode disaggregation. Any model, any accelerator, any cloud.'},
+  {name:'Prometheus + OpenTelemetry', badge:null, text:'Observability for AI workloads. You\'re not just watching CPU/memory anymore — you\'re tracking: Time to First Token (TTFT), tokens per second, KV cache hit rate, queue depth. llm-d exports these natively. Prometheus scrapes them. Grafana dashboards them. You know your SLOs.'},
+  {name:'OPA + SPIFFE', badge:null, text:'Policy enforcement and verified identity for agentic workloads. As AI agents call APIs and make autonomous decisions, you need: who is this agent? (SPIFFE X.509 SVID) and is it allowed to do this? (OPA policy). Critical as AI becomes agentic in production environments.'}
+];
+let selectedTool = 0;
+
+function selectTool(i){
+  document.querySelectorAll('.tool-card').forEach((c, j) => {
+    c.classList.remove('sel','sel-new');
+    if(j === i) c.classList.add(i === 2 ? 'sel-new' : 'sel');
+  });
+  const t = toolData[i];
+  const detail = document.getElementById('toolDetail');
+  detail.style.opacity = '0';
+  setTimeout(() => {
+    document.getElementById('tdName').textContent = t.name;
+    document.getElementById('tdText').textContent = t.text;
+    const badge = detail.querySelector('.td-badge');
+    if(t.badge){
+      if(!badge){ const b = document.createElement('div'); b.className='td-badge'; b.textContent=t.badge; detail.insertBefore(b, detail.firstChild); }
+      else badge.textContent = t.badge;
+      detail.querySelector('.td-badge').style.display='inline-block';
+    } else {
+      if(badge) badge.style.display='none';
+    }
+    detail.style.opacity = '1';
+  }, 200);
+  selectedTool = i;
+}
+
+// =======================================
+// QUIZ
+// =======================================
+const questions = [
+  {
+    q: "What makes llm-d's Endpoint Picker (EPP) fundamentally different from a standard Kubernetes load balancer?",
+    opts: [
+      "It uses weighted round-robin with pod health scoring",
+      "It routes based on KV cache hit probability per pod",
+      "It distributes requests across availability zones",
+      "It balances based on CPU and memory usage only"
+    ],
+    correct: 1,
+    feedback: {
+      ok: "✓ Correct. EPP reads the KV cache state of every pod before routing. A standard K8s LB has no concept of KV cache — it balances on connection count, CPU, or round-robin. EPP makes the routing decision that saves 40%+ TTFT.",
+      no: "✗ Not quite. The key difference is KV cache awareness. EPP reads how warm each pod's cache is and routes the request to the pod most likely to produce a Cache Hit — avoiding a full context rebuild."
+    }
+  },
+  {
+    q: "In llm-d's Prefill/Decode Disaggregation, what is the Prefill pod responsible for?",
+    opts: [
+      "Generating output tokens one by one",
+      "Processing and understanding the full input prompt",
+      "Managing KV cache storage and eviction",
+      "Scaling the number of active worker nodes"
+    ],
+    correct: 1,
+    feedback: {
+      ok: "✓ Correct. Prefill is compute-heavy (reads the entire input prompt, builds the KV cache). Decode is memory-bandwidth-heavy (generates tokens autoregressively). Separating them lets each run on hardware optimized for its workload — and scale independently.",
+      no: "✗ The Prefill pod reads and encodes the input prompt — it's compute-intensive. Token generation is the Decode pod's job. Splitting them is the key to efficient GPU utilization in llm-d."
+    }
+  },
+  {
+    q: "Which metric does Prometheus track in an llm-d deployment that standard Kubernetes monitoring completely ignores?",
+    opts: [
+      "CPU utilization per pod",
+      "Network bytes transferred per second",
+      "KV cache hit rate per inference pod",
+      "Memory swap usage across nodes"
+    ],
+    correct: 2,
+    feedback: {
+      ok: "✓ Correct. KV cache hit rate is an LLM-specific metric — standard K8s monitoring has no idea what a KV cache even is. llm-d exports this natively to Prometheus. High hit rate = low TTFT. Low hit rate = you're rebuilding context constantly.",
+      no: "✗ CPU and network are standard K8s metrics. The metric that matters for LLM performance — KV cache hit rate — is invisible to standard monitoring. llm-d exposes it natively, alongside TTFT and queue depth."
+    }
+  }
+];
+
+let qCur = 0, qScore = 0, qAnswered = false;
+
+function initQuiz(){
+  qCur = 0; qScore = 0; qAnswered = false;
+  ['qd0','qd1','qd2'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    el.className = 'q-dot' + (i === 0 ? ' cur' : '');
+  });
+  document.getElementById('scoreDisp').textContent = '0';
+  renderQ();
+}
+
+function renderQ(){
+  qAnswered = false;
+  document.getElementById('qNextBtn').disabled = true;
+  document.getElementById('qHint').textContent = 'Select an answer to continue';
+  const q = questions[qCur];
+  const letters = ['A','B','C','D'];
+  let html = `<div class="q-question">${q.q}</div><div class="q-options">`;
+  q.opts.forEach((opt, i) => {
+    html += `<div class="q-option" id="qo${i}" onclick="answerQ(${i})">
+      <div class="opt-letter">${letters[i]}</div>
+      <span>${opt}</span>
+    </div>`;
+  });
+  html += `</div><div class="q-feedback" id="qFeedback"></div>`;
+  document.getElementById('quizContent').innerHTML = html;
+}
+
+function answerQ(chosen){
+  if(qAnswered) return;
+  qAnswered = true;
+  const q = questions[qCur];
+  const correct = chosen === q.correct;
+  if(correct) qScore++;
+  document.getElementById('scoreDisp').textContent = qScore;
+  
+  document.querySelectorAll('.q-option').forEach((el, i) => {
+    el.classList.add('disabled');
+    if(i === q.correct) el.classList.add('correct');
+    else if(i === chosen && !correct) el.classList.add('wrong');
+  });
+  
+  const fb = document.getElementById('qFeedback');
+  fb.className = 'q-feedback show ' + (correct ? 'ok' : 'no');
+  fb.textContent = correct ? q.feedback.ok : q.feedback.no;
+  
+  document.getElementById('qHint').textContent = correct ? '🎯 Correct!' : '💡 Review the explanation above';
+  document.getElementById('qNextBtn').disabled = false;
+  document.getElementById('qNextBtn').textContent = qCur < 2 ? 'Next →' : 'See Results';
+}
+
+function nextQ(){
+  // mark dot done
+  document.getElementById('qd'+qCur).className = 'q-dot done';
+  qCur++;
+  if(qCur < 3){
+    document.getElementById('qd'+qCur).className = 'q-dot cur';
+    renderQ();
+  } else {
+    showScore();
+  }
+}
+
+function showScore(){
+  const msgs = [
+    "Keep exploring — review the slides and try again!",
+    "Good start! Re-read the llm-d and EPP sections to sharpen up.",
+    "Almost perfect! You've got a solid grasp of the concepts.",
+    "Perfect score! You're ready to deploy llm-d in production. 🚀"
+  ];
+  const pct = (qScore/3*100).toFixed(0);
+  document.getElementById('quizContent').innerHTML = `
+    <div class="score-final">
+      <div class="score-big" style="color:${qScore===3?'var(--green)':qScore>=2?'var(--cyan)':'var(--amber)'}">${qScore}/3</div>
+      <div class="score-label">${pct}% correct</div>
+      <div class="score-bar"><div class="score-fill" id="scoreFill" style="width:0%"></div></div>
+      <div class="score-msg">${msgs[qScore]}</div>
+    </div>`;
+  setTimeout(() => { document.getElementById('scoreFill').style.width = pct+'%'; }, 100);
+  document.getElementById('qNextBtn').textContent = 'Retry Quiz';
+  document.getElementById('qNextBtn').disabled = false;
+  document.getElementById('qNextBtn').onclick = () => { initQuiz(); document.getElementById('qNextBtn').onclick = nextQ; };
+  document.getElementById('qHint').textContent = '';
+}
+
+// =======================================
+// TAKEAWAYS
+// =======================================
+function animateTakeaways(){
+  ['tk0','tk1','tk2'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('show');
+    setTimeout(() => { if(el) el.classList.add('show'); }, i * 250);
+  });
+}
+</script>
+</body>
+</html>
